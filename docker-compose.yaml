@@ -1,0 +1,39 @@
+services:
+  solace:
+    image: solace/solace-pubsub-standard:10.26.0
+    shm_size: 1g
+    ulimits:
+      core: -1
+      nofile:
+        soft: 2448
+        hard: 1048576
+    ports: ["8080:8080", "55554:55555"]
+    environment:
+      username_admin_globalaccesslevel: admin
+      username_admin_password: admin
+
+  exporter:
+    image: solacecommunity/solace-prometheus-exporter:v1.20.1
+    environment:
+      SOLACE_SCRAPE_URI: http://solace:8080
+    ports: ["9628:9628"]
+    depends_on: [solace]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.155.0
+    volumes:
+      - ./collector.yaml:/etc/otel/config.yaml
+    command: ["--config=/etc/otel/config.yaml"]
+    ports: ["8889:8889"]
+
+  prometheus:
+    image: prom/prometheus:v3.5.4
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
+    ports: ["9090:9090"]
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.146.0
+    command: ["-retentionPeriod=1d"]
+    ports: ["8428:8428"]
